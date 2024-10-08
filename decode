@@ -1,0 +1,17 @@
+#!/usr/bin/env elixir
+
+defmodule CursorDecoder do
+  def decode(input) do
+    case Base.decode64(input) do
+      {:ok, decoded} -> decoded
+      :error -> "Error: Invalid Base64 input"
+    end
+  end
+end
+
+case System.argv() do
+  [input | _] ->
+    CursorDecoder.decode(input) |> IO.puts()
+  [] ->
+    IO.puts("Error: Please provide a Base64 encoded string as an argument")
+end

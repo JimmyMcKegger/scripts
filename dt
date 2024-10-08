@@ -1,0 +1,77 @@
+#!/usr/bin/env elixir
+
+defmodule DateTimeHelper do
+  def main([]),
+    do: print_error("Please include a Unix timestamp as an argument.")
+
+  def main([arg | _]),
+    do: parse_and_convert(arg)
+
+  defp parse_and_convert(arg) do
+    case Integer.parse(arg) do
+      {unix_time, _} -> convert_unix_to_datetime(unix_time)
+      :error -> print_error("Invalid timestamp. Please provide a valid integer.")
+    end
+  end
+
+  defp convert_unix_to_datetime(unix_time) do
+    case DateTime.from_unix(unix_time) do
+      {:ok, datetime} ->
+        datetime
+        |> DateTime.to_string()
+        |> format_datetime()
+        |> copy_to_clipboard()
+      {:error, :invalid_unix_time} ->
+        print_error("Invalid Unix timestamp. Please provide a valid Unix time.")
+    end
+  end
+
+  defp format_datetime(datetime_string),
+    do: String.slice(datetime_string, 0, 19)
+
+  defp print_error(message) do
+    IO.puts(:stderr, message)
+    System.halt(1)
+  end
+
+  defp copy_to_clipboard(text) do
+    case determine_os() do
+      :macos ->
+        run_command("pbcopy", text)
+      :linux ->
+        run_command("xclip -selection clipboard", text)
+      :chromeos ->
+        run_command("xsel -ib", text)
+      _ ->
+        IO.puts("Unsupported operating system for clipboard operations")
+    end
+    IO.puts(text)
+
+    text
+  end
+
+  defp determine_os do
+    case :os.type() do
+      {:unix, :darwin} -> :macos
+      {:unix, :linux} ->
+        case File.read("/etc/os-release") do
+          {:ok, content} ->
+            if String.contains?(content, "Chrome OS") do
+              :chromeos
+            else
+              :linux
+            end
+          _ -> :linux
+        end
+      _ -> :unknown
+    end
+  end
+
+  defp run_command(cmd, input) do
+    port = Port.open({:spawn, cmd}, [:binary])
+    Port.command(port, input)
+    Port.close(port)
+  end
+end
+
+System.argv() |> DateTimeHelper.main()
