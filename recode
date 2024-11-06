@@ -1,31 +1,62 @@
 #!/usr/bin/env elixir
 
 defmodule CursorEncoder do
-  def encode(id) do
-    id = String.to_integer(id)
-    cursor = ~s({"last_id":#{id},"last_value":#{id}})
-    Base.encode64(cursor)
-  end
+
+  def encode(id),
+    do:
+      id
+      |> String.to_integer()
+      |> format_cursor()
+      |> Base.encode64()
+      |> IO.inspect(label: "Encoded cursor")
+      |> copy_to_clipboard()
+
+  defp format_cursor(id),
+    do:
+      ~s({"last_id":#{id},"last_value":#{id}})
 
   def copy_to_clipboard(text) do
-    case :os.type() do
-      {:unix, :darwin} ->
-        Port.open({:spawn, "pbcopy"}, [:binary])
-        |> Port.command(text)
-      {:unix, _} ->
-        Port.open({:spawn, "xclip -selection clipboard"}, [:binary])
-        |> Port.command(text)
+    case determine_os() do
+      :macos ->
+        run_command("pbcopy", text)
+      :linux ->
+        run_command("xclip -selection clipboard", text)
+      :chromeos ->
+        run_command("xsel -ib", text)
       _ ->
         IO.puts("Unsupported operating system for clipboard operations")
     end
+
+    text
+  end
+
+  defp determine_os do
+    case :os.type() do
+      {:unix, :darwin} -> :macos
+      {:unix, :linux} ->
+        case File.read("/etc/os-release") do
+          {:ok, content} ->
+            if String.contains?(content, "Chrome OS") do
+              :chromeos
+            else
+              :linux
+            end
+          _ -> :linux
+        end
+      _ -> :unknown
+    end
+  end
+
+  defp run_command(cmd, input) do
+    port = Port.open({:spawn, cmd}, [:binary])
+    Port.command(port, input)
+    Port.close(port)
   end
 end
 
 case System.argv() do
   [id | _] ->
-    encoded = CursorEncoder.encode(id)
-    CursorEncoder.copy_to_clipboard(encoded)
-    IO.puts(~s["#{encoded}" copied to clipboard])
+    id |> CursorEncoder.encode()
   [] ->
     IO.puts("Error: Please provide an ID to encode")
 end
