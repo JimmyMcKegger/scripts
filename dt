@@ -22,7 +22,19 @@ defmodule DateTimeHelper do
         |> format_datetime()
         |> copy_to_clipboard()
       {:error, :invalid_unix_time} ->
-        print_error("Invalid Unix timestamp. Please provide a valid Unix time.")
+        convert_unix_to_datetime(unix_time, :millisecond)
+    end
+  end
+
+  defp convert_unix_to_datetime(unix_time, :millisecond) do
+    case DateTime.from_unix(unix_time, :millisecond) do
+      {:ok, datetime} ->
+        datetime
+        |> DateTime.to_string()
+        |> format_datetime()
+        |> copy_to_clipboard()
+      {:error, :invalid_unix_time} ->
+        IO.puts("Invalid Unix timestamp. Please provide a valid Unix time.")
     end
   end
 
